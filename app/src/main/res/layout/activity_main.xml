@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="10dp"
+    android:fillViewport="true"
+    tools:context="com.sunshine.usbdemo.MainActivity">
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+    <EditText
+        android:id="@+id/et_text"
+        android:hint="请输入要发送的指令"
+        android:textColor="@android:color/black"
+        android:textSize="14sp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+    <Button
+        android:id="@+id/button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:layout_below="@+id/et_text"
+        android:text="检测设备" />
+    <Button
+        android:id="@+id/button2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:layout_below="@+id/et_text"
+        app:layout_constraintLeft_toRightOf="@+id/button"
+        android:text="发送数据" />
+    <TextView
+        android:id="@+id/info"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="设备信息:"
+        android:padding="10dp"
+        android:textColor="@android:color/black"
+        android:textSize="14sp"
+        android:layout_below="@+id/button"/>
+
+    <TextView
+        android:id="@+id/result"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="监听数据:"
+        android:padding="10dp"
+        android:textColor="@android:color/black"
+        android:textSize="14sp"
+        android:layout_below="@+id/info"/>
+    </RelativeLayout>
+</ScrollView>
