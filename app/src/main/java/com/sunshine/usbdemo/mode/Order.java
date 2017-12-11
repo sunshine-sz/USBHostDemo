@@ -35,7 +35,8 @@ public class Order {
         RESET_PASSWORD2(0X0504),
         RESET_AQ(0x0a01),
         STOP_READ(0x0514),
-        UPDATE_VERSION(0x0301);
+        UPDATE_VERSION(0x0301),
+        GET_DEVICE_ID(0x0901);
 
         final int value;
 

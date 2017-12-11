@@ -10,29 +10,41 @@
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
-    <EditText
-        android:id="@+id/et_text"
-        android:hint="请输入要发送的指令"
-        android:textColor="@android:color/black"
-        android:textSize="14sp"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+    <!--<EditText-->
+        <!--android:id="@+id/et_text"-->
+        <!--android:hint="请输入要发送的指令"-->
+        <!--android:textColor="@android:color/black"-->
+        <!--android:textSize="14sp"-->
+        <!--android:layout_width="match_parent"-->
+        <!--android:layout_height="wrap_content" />-->
     <Button
         android:id="@+id/button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_centerVertical="true"
-        android:layout_below="@+id/et_text"
+
         android:text="检测设备" />
+        <Button
+            android:id="@+id/button3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_toRightOf="@+id/button"
+            android:text="获取Token" />
     <Button
         android:id="@+id/button2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
-        android:layout_centerVertical="true"
-        android:layout_below="@+id/et_text"
-        app:layout_constraintLeft_toRightOf="@+id/button"
-        android:text="发送数据" />
+        android:layout_toRightOf="@+id/button3"
+        android:text="开锁" />
+        <Button
+            android:id="@+id/button4"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_toRightOf="@+id/button2"
+            android:text="复位" />
+
     <TextView
         android:id="@+id/info"
         android:layout_width="match_parent"

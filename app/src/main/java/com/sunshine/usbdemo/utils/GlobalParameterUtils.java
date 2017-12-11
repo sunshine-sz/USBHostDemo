@@ -21,8 +21,16 @@ public class GlobalParameterUtils {
     private byte DEVTYPE;
     private boolean isUpdate;
     private boolean busy = false;
+    private String deviceId;
 
 
+    public String getDeviceId() {
+        return deviceId;
+    }
+
+    public void setDeviceId(String deviceId) {
+        this.deviceId = deviceId;
+    }
 
     public byte[] getToken() {
         return token;
