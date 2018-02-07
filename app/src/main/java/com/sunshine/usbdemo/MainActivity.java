@@ -17,16 +17,27 @@ import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.fitsleep.sunshinelibrary.inter.OnItemClickListener;
+import com.fitsleep.sunshinelibrary.utils.KeyboardUtils;
+import com.fitsleep.sunshinelibrary.utils.ToastUtils;
+import com.fitsleep.sunshinelibrary.view.AlertView;
+import com.sunshine.usbdemo.mode.CloseBatteryTxOrder;
 import com.sunshine.usbdemo.mode.GetDeviceId;
 import com.sunshine.usbdemo.mode.GetTokenTxOrder;
+import com.sunshine.usbdemo.mode.OpenBatteryTxOrder;
 import com.sunshine.usbdemo.mode.OpenLockTxOrder;
 import com.sunshine.usbdemo.mode.ResetLockTxOrder;
 import com.sunshine.usbdemo.utils.AESUtils;
+import com.sunshine.usbdemo.utils.Config;
 import com.sunshine.usbdemo.utils.DataTransfer;
 import com.sunshine.usbdemo.utils.GlobalParameterUtils;
 
@@ -41,7 +52,7 @@ public class MainActivity extends AppCompatActivity {
     public static byte[] KEY = {58, 96, 67, 42, 92, 01, 33, 31, 41, 30, 15, 78, 12, 19, 40, 37};
 
     //    public static byte[] KEY = {32,87,47,82,54,75,63,71,48,80,65,88,17,99,45,43};
-    private Button button, button2, button3, button4;
+    private Button button, button2, button3, button4,button5,button6;
     private TextView mInfoTextView;
     private UsbManager usbManager;
     private UsbDevice usbDevice;
@@ -55,6 +66,10 @@ public class MainActivity extends AppCompatActivity {
     private UsbEndpoint inEndpoint;
     private UsbDeviceConnection connection;
     private boolean isRunning = false;
+    private EditText etName;
+    private byte[] oldPassword;
+    private byte[] newPasswordBytes;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -81,7 +96,6 @@ public class MainActivity extends AppCompatActivity {
         button3.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-//                new MyThread4().start();
                 byte[] bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(new GetTokenTxOrder().generateString()), KEY);
                 new MyThread(bytes).start();
             }
@@ -93,6 +107,95 @@ public class MainActivity extends AppCompatActivity {
                 new MyThread(bytes).start();
             }
         });
+
+        button5.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                final InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                final AlertView mAlertViewExt = new AlertView("提示", "输入密码！", "取消", null, new String[]{"完成"}, MainActivity.this, AlertView.Style.Alert, new OnItemClickListener() {
+                    @Override
+                    public void onItemClick(Object o, int position) {
+                        KeyboardUtils.hideSoftInput(MainActivity.this);
+                        if (position == 0) {
+                            final String newPassword = etName.getText().toString().trim();
+                            if (newPassword.length() != 6) {
+                                ToastUtils.showMessage("请输入6位数密码");
+                                return;
+                            }
+
+                            final byte[] token = GlobalParameterUtils.getInstance().getToken();
+                            if (null == token || token.length < 4) {
+                                return;
+                            }
+                            byte[] oldPassword = {0x05, 0x03, 0x06, Config.password[0], Config.password[1], Config.password[2], Config.password[3], Config.password[4], Config.password[5], token[0], token[1], token[2], token[3], 0x00, 0x00, 0x00};
+                            byte[] bytes = AESUtils.Encrypt(oldPassword, KEY);
+                            new MyThread(bytes).start();
+                            new Handler().postDelayed(new Runnable() {
+                                @Override
+                                public void run() {
+                                    char[] chars = newPassword.toCharArray();
+                                    byte[] newPassword = new byte[]{0x05, 0x04, 0x06, (byte) chars[0], (byte) chars[1], (byte) chars[2], (byte) chars[3], (byte) chars[4], (byte) chars[5], token[0], token[1], token[2], token[3], 0x00, 0x00, 0x00};
+                                    newPasswordBytes = new byte[]{(byte) chars[0], (byte) chars[1], (byte) chars[2], (byte) chars[3], (byte) chars[4], (byte) chars[5]};
+                                    byte[] bytes = AESUtils.Encrypt(newPassword, KEY);
+                                    new MyThread(bytes).start();
+                                }
+                            }, 1000);
+                        }
+                    }
+                });
+                ViewGroup extView = (ViewGroup) LayoutInflater.from(MainActivity.this).inflate(R.layout.alertext_form, null);
+                etName = (EditText) extView.findViewById(R.id.etName);
+                etName.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                    @Override
+                    public void onFocusChange(View view, boolean focus) {
+                        //输入框出来则往上移动
+                        boolean isOpen = imm.isActive();
+                        mAlertViewExt.setMarginBottom(isOpen && focus ? 120 : 0);
+                        System.out.println(isOpen);
+                    }
+                });
+                mAlertViewExt.addExtView(extView);
+                mAlertViewExt.show();
+            }
+        });
+
+        button6.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                byte[] token = GlobalParameterUtils.getInstance().getToken();
+                if (null == token || token.length < 4) {
+                    return;
+                }
+                byte[] aq_mi = {0x07, 0x01, 0x08, Config.MTX_KEY[0], Config.MTX_KEY[1], Config.MTX_KEY[2], Config.MTX_KEY[3], Config.MTX_KEY[4],Config.MTX_KEY[5], Config.MTX_KEY[6], Config.MTX_KEY[7], token[0], token[1], token[2], token[3], 0x00};
+                byte[] bytes =  AESUtils.Encrypt(aq_mi,KEY);
+                new MyThread(bytes).start();
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        byte[] aq_mi = {0x07, 0x02, 0x08, Config.MTX_KEY[8],Config.MTX_KEY[9], Config.MTX_KEY[10], Config.MTX_KEY[11], Config.MTX_KEY[12], Config.MTX_KEY[13], Config.MTX_KEY[14], Config.MTX_KEY[15], GlobalParameterUtils.getInstance().getToken()[0], GlobalParameterUtils.getInstance().getToken()[1], GlobalParameterUtils.getInstance().getToken()[2], GlobalParameterUtils.getInstance().getToken()[3], 0x00};
+                        byte[] bytes =  AESUtils.Encrypt(aq_mi,KEY);
+                        new MyThread(bytes).start();
+                    }
+                },1000);
+            }
+        });
+
+        findViewById(R.id.bt_battery).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                byte[] bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(new OpenBatteryTxOrder().generateString()), KEY);
+                new MyThread(bytes).start();
+            }
+        });
+
+        findViewById(R.id.bt_close_battery).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                byte[] bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(new CloseBatteryTxOrder().generateString()), KEY);
+                new MyThread(bytes).start();
+            }
+        });
+
     }
 
     @Override
@@ -103,6 +206,7 @@ public class MainActivity extends AppCompatActivity {
             mUsbReceiver = null;
         }
         isRunning = false;
+        System.exit(0);
     }
 
     private void initUSB() {
@@ -126,6 +230,8 @@ public class MainActivity extends AppCompatActivity {
         button2 = (Button) findViewById(R.id.button2);
         button3 = (Button) findViewById(R.id.button3);
         button4 = (Button) findViewById(R.id.button4);
+        button5 = (Button) findViewById(R.id.bt_password);
+        button6 = (Button) findViewById(R.id.bt_key);
         mInfoTextView = (TextView) findViewById(R.id.info);
         result = (TextView) findViewById(R.id.result);
     }
@@ -285,32 +391,6 @@ public class MainActivity extends AppCompatActivity {
         public void handleMessage(Message msg) {
             switch (msg.what) {
                 case 0:
-//                    int datalen = mydatatransfer.GetDataLen();
-//                    byte[] mtmpbyte = new byte[datalen];
-//                    if (mystring.length() > 2048) {
-//                        mystring = mystring.substring(datalen, mystring.length());
-//                    }
-//                    mydatatransfer.ReadMultiData(mtmpbyte, datalen);
-//                    byte[] mingwen = AESUtils.Decrypt(mtmpbyte, KEY);
-//                    for (byte i : mingwen) {
-//                        Log.e("decrypt", "i:" + i);
-//                    }
-//                    result.setText(AESUtils.bytes2HexString(mingwen));
-//                    Log.e("mystring", "mystring:" + AESUtils.bytes2HexString(mingwen));
-//                    if (AESUtils.bytes2HexString(mingwen).startsWith("0602")) {
-//                        if (mingwen != null && mingwen.length == 16) {
-//                            if (mingwen[0] == 0x06 && mingwen[1] == 0x02) {
-//                                byte[] token = new byte[4];
-//                                token[0] = mingwen[3];
-//                                token[1] = mingwen[4];
-//                                token[2] = mingwen[5];
-//                                token[3] = mingwen[6];
-//                                GlobalParameterUtils.getInstance().setToken(token);
-//                            }
-//                        }
-//                        byte[] bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(new GetDeviceId().generateString()), KEY);
-//                        new MyThread(bytes).start();
-//                    }
                     break;
                 case 1://监听的数据
                     int datalen = mydatatransfer.GetDataLen();
@@ -345,6 +425,20 @@ public class MainActivity extends AppCompatActivity {
                         result.append("\n开锁反馈:"+AESUtils.bytes2HexString(mingwen));
                     }else if (AESUtils.bytes2HexString(mingwen).startsWith("050D")){
                         result.append("\n关锁反馈:"+AESUtils.bytes2HexString(mingwen));
+                    }else if (AESUtils.bytes2HexString(mingwen).startsWith("0505")){
+                        if (AESUtils.bytes2HexString(mingwen).startsWith("05050100")){
+                            Config.password = newPasswordBytes;
+                        }
+                        result.append("\n修改密码反馈:"+AESUtils.bytes2HexString(mingwen));
+                    }else if (AESUtils.bytes2HexString(mingwen).startsWith("0703")){
+                        if (AESUtils.bytes2HexString(mingwen).startsWith("07030100")){
+                            KEY = Config.MTX_KEY;
+                        }
+                        result.append("\n修改密钥反馈:"+AESUtils.bytes2HexString(mingwen));
+                    }else if (AESUtils.bytes2HexString(mingwen).startsWith("1002")){
+                        result.append("\n开启电池仓反馈:"+AESUtils.bytes2HexString(mingwen));
+                    }else if (AESUtils.bytes2HexString(mingwen).startsWith("1004")){
+                        result.append("\n关闭电池仓反馈:"+AESUtils.bytes2HexString(mingwen));
                     }
                     break;
             }
@@ -368,13 +462,6 @@ public class MainActivity extends AppCompatActivity {
                 //发送数据
                 int out = connection.bulkTransfer(outEndpoint, bytes, bytes.length, 3000);
                 Log.e("out", "out:" + out);
-//                //读取数据1   两种方法读取数据
-//                int ret = connection.bulkTransfer(inEndpoint, mybuffer, mybuffer.length, 3000);
-//                Log.e("ret", "ret:" + ret);
-//                mydatatransfer.AddData(mybuffer, ret);
-//                if (ret >= 0) {
-//                    handler.sendEmptyMessage(0);
-//                }
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

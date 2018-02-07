@@ -1,28 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="10dp"
     android:fillViewport="true"
+    android:padding="10dp"
     tools:context="com.sunshine.usbdemo.MainActivity">
+
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
-    <!--<EditText-->
-        <!--android:id="@+id/et_text"-->
-        <!--android:hint="请输入要发送的指令"-->
-        <!--android:textColor="@android:color/black"-->
-        <!--android:textSize="14sp"-->
-        <!--android:layout_width="match_parent"-->
-        <!--android:layout_height="wrap_content" />-->
-    <Button
-        android:id="@+id/button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
 
-        android:text="检测设备" />
+        <Button
+            android:id="@+id/button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+
+            android:text="检测设备" />
+
         <Button
             android:id="@+id/button3"
             android:layout_width="wrap_content"
@@ -30,13 +25,15 @@
             android:layout_centerHorizontal="true"
             android:layout_toRightOf="@+id/button"
             android:text="获取Token" />
-    <Button
-        android:id="@+id/button2"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:layout_toRightOf="@+id/button3"
-        android:text="开锁" />
+
+        <Button
+            android:id="@+id/button2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_toRightOf="@+id/button3"
+            android:text="开锁" />
+
         <Button
             android:id="@+id/button4"
             android:layout_width="wrap_content"
@@ -45,24 +42,54 @@
             android:layout_toRightOf="@+id/button2"
             android:text="复位" />
 
-    <TextView
-        android:id="@+id/info"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="设备信息:"
-        android:padding="10dp"
-        android:textColor="@android:color/black"
-        android:textSize="14sp"
-        android:layout_below="@+id/button"/>
+        <Button
+            android:id="@+id/bt_password"
+            android:layout_below="@+id/button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="修改密码"/>
+        <Button
+            android:id="@+id/bt_key"
+            android:layout_toRightOf="@+id/bt_password"
+            android:layout_below="@+id/button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="修改密钥"/>
 
-    <TextView
-        android:id="@+id/result"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="监听数据:"
-        android:padding="10dp"
-        android:textColor="@android:color/black"
-        android:textSize="14sp"
-        android:layout_below="@+id/info"/>
+        <Button
+            android:id="@+id/bt_battery"
+            android:layout_toRightOf="@+id/bt_key"
+            android:layout_below="@+id/button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="开启电池仓"/>
+
+        <Button
+            android:id="@+id/bt_close_battery"
+            android:layout_toRightOf="@+id/bt_battery"
+            android:layout_below="@+id/button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="关闭电池仓"/>
+
+        <TextView
+            android:id="@+id/info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/bt_password"
+            android:padding="10dp"
+            android:text="设备信息:"
+            android:textColor="@android:color/black"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/result"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/info"
+            android:padding="10dp"
+            android:text="监听数据:"
+            android:textColor="@android:color/black"
+            android:textSize="14sp" />
     </RelativeLayout>
 </ScrollView>

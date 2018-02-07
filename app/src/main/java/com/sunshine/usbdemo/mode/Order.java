@@ -36,7 +36,9 @@ public class Order {
         RESET_AQ(0x0a01),
         STOP_READ(0x0514),
         UPDATE_VERSION(0x0301),
-        GET_DEVICE_ID(0x0901);
+        GET_DEVICE_ID(0x0901),
+        OPEN_BATTERY(0x1001),
+        CLOSE_BATTERY(0x1003);
 
         final int value;
 
