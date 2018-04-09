@@ -29,6 +29,7 @@ public class Config {
      * 马蹄锁
      */
     public static byte[] MTX_KEY = {32,87,47,82,54,75,63,71,48,80,65,88,17,99,45,43};
+
     /**
      * 圆形锁
      */
