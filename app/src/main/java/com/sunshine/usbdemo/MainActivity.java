@@ -235,9 +235,11 @@ public class MainActivity extends MPermissionsActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == QR_SCAN_REQUEST_CODE && resultCode == RESULT_OK && null != data) {
             String code = data.getStringExtra("code");
+            Logger.e("####","code:"+code);
             if (!TextUtils.isEmpty(code)) {
                 barcode = code;
-                mInfoTextView.append("二维码信息："+ barcode +"\n");
+                result.append("二维码信息："+ barcode +"\n");
+                inputServer();
             }
         }
     }
@@ -468,7 +470,7 @@ public class MainActivity extends MPermissionsActivity {
                         result.append("\n设备编号:"+AESUtils.bytes2HexString(x));
                     }else if (AESUtils.bytes2HexString(mingwen).startsWith("0502")){
                         result.append("\n开锁反馈:"+AESUtils.bytes2HexString(mingwen));
-                        inputServer();
+
                     }else if (AESUtils.bytes2HexString(mingwen).startsWith("050D")){
                         result.append("\n关锁反馈:"+AESUtils.bytes2HexString(mingwen));
                     }else if (AESUtils.bytes2HexString(mingwen).startsWith("0505")){
@@ -513,12 +515,19 @@ public class MainActivity extends MPermissionsActivity {
                 String string = response.body().string();
                 Logger.e(MainActivity.class.getSimpleName(),"通讯成功："+string);
                 JSONObject jsonObject = JSONObject.parseObject(string);
-                String status = jsonObject.getString("status");
+                final String status = jsonObject.getString("status");
                 if (status.equals("2000")){
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            ToastUtils.showMessage("入库成功");
+                            result.append("入库成功\n");
+                        }
+                    });
+                }else {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            result.append("入库失败+"+status+"\n");
                         }
                     });
                 }

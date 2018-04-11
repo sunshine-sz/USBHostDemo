@@ -27,6 +27,7 @@
             <meta-data android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
                 android:resource="@xml/device_filter" />
         </activity>
+        <activity android:name="zxing.android.view.QrCodeActivity" android:screenOrientation="portrait"/>
     </application>
 
 </manifest>

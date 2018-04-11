@@ -4,7 +4,7 @@ public class InputBean {
 
     private String mac;
     private String deviceId;
-    private String deviceType;
+    private String deviceType = "4";
     private String lockKey = "58,96,67,42,92,01,33,31,41,30,15,78,12,19,40,37";
     private String password = "000000";
     private String barcode;

@@ -3,7 +3,7 @@ apply plugin: 'com.android.application'
 android {
     compileSdkVersion 26
     defaultConfig {
-        applicationId "com.sunshine.usbdemo"
+        applicationId "com.sunshine.usbdemo.h"
         minSdkVersion 21
         targetSdkVersion 26
         versionCode 6
