@@ -1,3 +1,13 @@
 <resources>
-    <string name="app_name">USBDemo</string>
+    <string name="app_name">OTG入库</string>
+    <!--扫一扫-->
+    <string name="qc_code_close">Close</string>
+    <string name="qr_code_auto_scan_notification">on the QR code</string>
+    <string name="qr_code_notification">Reminder</string>
+    <string name="qr_code_camera_not_open">camera unavailable, please set: setting-privacy-camera</string>
+    <string name="qr_code_positive_button_know">Know it</string>
+    <string name="qr_code_positive_button_confirm">Confirm</string>
+    <string name="qr_code_could_not_read_qr_code_from_picture">can’t read the pic, please change other one~</string>
+    <string name="qr_code_could_not_read_qr_code_from_scanner">sorry, can’t read</string>
+    <string name="qr_code_camera_not_found">can’t find the camera</string>
 </resources>

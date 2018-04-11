@@ -33,6 +33,13 @@
             android:layout_centerHorizontal="true"
             android:layout_toRightOf="@+id/button3"
             android:text="开锁" />
+        <Button
+            android:id="@+id/bt_code"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_toRightOf="@+id/button2"
+            android:text="二维码" />
 
         <Button
             android:id="@+id/button4"
@@ -40,6 +47,7 @@
             android:layout_height="wrap_content"
             android:layout_centerHorizontal="true"
             android:layout_toRightOf="@+id/button2"
+            android:visibility="gone"
             android:text="复位" />
 
         <Button
@@ -47,6 +55,7 @@
             android:layout_below="@+id/button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:visibility="gone"
             android:text="修改密码"/>
         <Button
             android:id="@+id/bt_key"
@@ -54,6 +63,7 @@
             android:layout_below="@+id/button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:visibility="gone"
             android:text="修改密钥"/>
 
         <Button
@@ -62,6 +72,7 @@
             android:layout_below="@+id/button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:visibility="gone"
             android:text="开启电池仓"/>
 
         <Button
@@ -70,6 +81,7 @@
             android:layout_below="@+id/button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:visibility="gone"
             android:text="关闭电池仓"/>
 
         <TextView

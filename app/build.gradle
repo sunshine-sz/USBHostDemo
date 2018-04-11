@@ -26,4 +26,7 @@ dependencies {
     androidTestImplementation 'com.android.support.test:runner:1.0.1'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
     implementation project(':sunshinelibrary')
+    implementation files('libs/core-3.2.1.jar')
+    implementation 'com.squareup.okhttp3:okhttp:3.10.0'
+    implementation 'com.alibaba:fastjson:1.2.46'
 }

@@ -1,5 +1,6 @@
 package com.sunshine.usbdemo;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -16,6 +17,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -26,13 +28,18 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.fitsleep.sunshinelibrary.inter.OnItemClickListener;
 import com.fitsleep.sunshinelibrary.utils.KeyboardUtils;
+import com.fitsleep.sunshinelibrary.utils.Logger;
+import com.fitsleep.sunshinelibrary.utils.MPermissionsActivity;
 import com.fitsleep.sunshinelibrary.utils.ToastUtils;
 import com.fitsleep.sunshinelibrary.view.AlertView;
 import com.sunshine.usbdemo.mode.CloseBatteryTxOrder;
 import com.sunshine.usbdemo.mode.GetDeviceId;
 import com.sunshine.usbdemo.mode.GetTokenTxOrder;
+import com.sunshine.usbdemo.mode.InputBean;
 import com.sunshine.usbdemo.mode.OpenBatteryTxOrder;
 import com.sunshine.usbdemo.mode.OpenLockTxOrder;
 import com.sunshine.usbdemo.mode.ResetLockTxOrder;
@@ -41,9 +48,19 @@ import com.sunshine.usbdemo.utils.Config;
 import com.sunshine.usbdemo.utils.DataTransfer;
 import com.sunshine.usbdemo.utils.GlobalParameterUtils;
 
+import java.io.IOException;
 import java.util.HashMap;
 
-public class MainActivity extends AppCompatActivity {
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import zxing.android.view.QrCodeActivity;
+
+public class MainActivity extends MPermissionsActivity {
 
     private static final String LOGTAG = MainActivity.class.getSimpleName();
     /**
@@ -69,7 +86,10 @@ public class MainActivity extends AppCompatActivity {
     private EditText etName;
     private byte[] oldPassword;
     private byte[] newPasswordBytes;
-
+    private String deviceId;
+    public static final int QR_SCAN_REQUEST_CODE = 3638;
+    private String barcode;
+    public static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -77,6 +97,12 @@ public class MainActivity extends AppCompatActivity {
         initUI();
         initUSB();
         isRunning = true;
+        findViewById(R.id.bt_code).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                requestPermission(new String[]{ Manifest.permission.CAMERA}, 100);
+            }
+        });
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View arg0) {
@@ -196,6 +222,24 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+    }
+
+    @Override
+    public void permissionSuccess(int requestCode) {
+        super.permissionSuccess(requestCode);
+        startActivityForResult(new Intent(this, QrCodeActivity.class), QR_SCAN_REQUEST_CODE);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == QR_SCAN_REQUEST_CODE && resultCode == RESULT_OK && null != data) {
+            String code = data.getStringExtra("code");
+            if (!TextUtils.isEmpty(code)) {
+                barcode = code;
+                mInfoTextView.append("二维码信息："+ barcode +"\n");
+            }
+        }
     }
 
     @Override
@@ -419,10 +463,12 @@ public class MainActivity extends AppCompatActivity {
                     }else if (AESUtils.bytes2HexString(mingwen).startsWith("0902")){
                         byte[] x = new byte[12];
                         System.arraycopy(mingwen, 4, x, 0, 12);
+                        deviceId = AESUtils.bytes2HexString(x);
                         mInfoTextView.append("\n设备编号:"+AESUtils.bytes2HexString(x));
                         result.append("\n设备编号:"+AESUtils.bytes2HexString(x));
                     }else if (AESUtils.bytes2HexString(mingwen).startsWith("0502")){
                         result.append("\n开锁反馈:"+AESUtils.bytes2HexString(mingwen));
+                        inputServer();
                     }else if (AESUtils.bytes2HexString(mingwen).startsWith("050D")){
                         result.append("\n关锁反馈:"+AESUtils.bytes2HexString(mingwen));
                     }else if (AESUtils.bytes2HexString(mingwen).startsWith("0505")){
@@ -444,6 +490,41 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     };
+
+    private void inputServer() {
+        InputBean bean = new InputBean();
+        bean.setBarcode(barcode);
+        bean.setDeviceId(deviceId);
+        bean.setMac(deviceId);
+        OkHttpClient okHttpClient = new OkHttpClient();
+        RequestBody body = RequestBody.create(JSON, com.alibaba.fastjson.JSON.toJSONString(bean));
+        Request request = new Request.Builder()
+                .url("http://app.nokelock.com:8080/newNokelock/lock/insert")
+                .post(body)
+                .build();
+        okHttpClient.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Logger.e(MainActivity.class.getSimpleName(),"通讯失败");
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String string = response.body().string();
+                Logger.e(MainActivity.class.getSimpleName(),"通讯成功："+string);
+                JSONObject jsonObject = JSONObject.parseObject(string);
+                String status = jsonObject.getString("status");
+                if (status.equals("2000")){
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ToastUtils.showMessage("入库成功");
+                        }
+                    });
+                }
+            }
+        });
+    }
 
 
     class MyThread extends Thread {
