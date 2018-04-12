@@ -16,6 +16,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -42,6 +43,9 @@ import com.sunshine.usbdemo.utils.DataTransfer;
 import com.sunshine.usbdemo.utils.GlobalParameterUtils;
 
 import java.util.HashMap;
+import java.util.Random;
+
+import static com.sunshine.usbdemo.mode.Order.formatByte2HexStr;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -52,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
     public static byte[] KEY = {58, 96, 67, 42, 92, 01, 33, 31, 41, 30, 15, 78, 12, 19, 40, 37};
 
     //    public static byte[] KEY = {32,87,47,82,54,75,63,71,48,80,65,88,17,99,45,43};
-    private Button button, button2, button3, button4,button5,button6;
+    private Button button, button2, button3, button4, button5, button6;
     private TextView mInfoTextView;
     private UsbManager usbManager;
     private UsbDevice usbDevice;
@@ -74,6 +78,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        ToastUtils.init(getApplicationContext());
         initUI();
         initUSB();
         isRunning = true;
@@ -166,17 +171,17 @@ public class MainActivity extends AppCompatActivity {
                 if (null == token || token.length < 4) {
                     return;
                 }
-                byte[] aq_mi = {0x07, 0x01, 0x08, Config.MTX_KEY[0], Config.MTX_KEY[1], Config.MTX_KEY[2], Config.MTX_KEY[3], Config.MTX_KEY[4],Config.MTX_KEY[5], Config.MTX_KEY[6], Config.MTX_KEY[7], token[0], token[1], token[2], token[3], 0x00};
-                byte[] bytes =  AESUtils.Encrypt(aq_mi,KEY);
+                byte[] aq_mi = {0x07, 0x01, 0x08, Config.MTX_KEY[0], Config.MTX_KEY[1], Config.MTX_KEY[2], Config.MTX_KEY[3], Config.MTX_KEY[4], Config.MTX_KEY[5], Config.MTX_KEY[6], Config.MTX_KEY[7], token[0], token[1], token[2], token[3], 0x00};
+                byte[] bytes = AESUtils.Encrypt(aq_mi, KEY);
                 new MyThread(bytes).start();
                 handler.postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        byte[] aq_mi = {0x07, 0x02, 0x08, Config.MTX_KEY[8],Config.MTX_KEY[9], Config.MTX_KEY[10], Config.MTX_KEY[11], Config.MTX_KEY[12], Config.MTX_KEY[13], Config.MTX_KEY[14], Config.MTX_KEY[15], GlobalParameterUtils.getInstance().getToken()[0], GlobalParameterUtils.getInstance().getToken()[1], GlobalParameterUtils.getInstance().getToken()[2], GlobalParameterUtils.getInstance().getToken()[3], 0x00};
-                        byte[] bytes =  AESUtils.Encrypt(aq_mi,KEY);
+                        byte[] aq_mi = {0x07, 0x02, 0x08, Config.MTX_KEY[8], Config.MTX_KEY[9], Config.MTX_KEY[10], Config.MTX_KEY[11], Config.MTX_KEY[12], Config.MTX_KEY[13], Config.MTX_KEY[14], Config.MTX_KEY[15], GlobalParameterUtils.getInstance().getToken()[0], GlobalParameterUtils.getInstance().getToken()[1], GlobalParameterUtils.getInstance().getToken()[2], GlobalParameterUtils.getInstance().getToken()[3], 0x00};
+                        byte[] bytes = AESUtils.Encrypt(aq_mi, KEY);
                         new MyThread(bytes).start();
                     }
-                },1000);
+                }, 1000);
             }
         });
 
@@ -193,6 +198,58 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 byte[] bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(new CloseBatteryTxOrder().generateString()), KEY);
                 new MyThread(bytes).start();
+            }
+        });
+
+        findViewById(R.id.bt_send_data).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                final InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                final AlertView mAlertViewExt = new AlertView("输入指令", "只需要输入token之前的字节即可！", "取消", null, new String[]{"完成"}, MainActivity.this, AlertView.Style.Alert, new OnItemClickListener() {
+                    @Override
+                    public void onItemClick(Object o, int position) {
+                        KeyboardUtils.hideSoftInput(MainActivity.this);
+                        if (position == 0) {
+                            final String newPassword = etName.getText().toString().trim();
+                            if (TextUtils.isEmpty(newPassword) || newPassword.length() % 2 != 0) {
+                                ToastUtils.showMessage("格式不对");
+                                return;
+                            }
+                            final byte[] token = GlobalParameterUtils.getInstance().getToken();
+                            if (null == token || token.length < 4) {
+                                return;
+                            }
+                            Random random = new Random();
+                            StringBuilder builder = new StringBuilder();
+                            builder.append(newPassword);
+                            //添加token
+                            for (int i = 0; i < 4; i++) {
+                                builder.append(formatByte2HexStr(GlobalParameterUtils.getInstance().getToken()[i]));
+                            }
+                            // 如果数据总位数不够，在数据后面补0
+                            for (int i = builder.length() / 2; i < 16; i++) {
+                                builder.append(formatByte2HexStr((byte) random.nextInt(127)));
+                            }
+                            // 生成字符串形式的指令
+                            String orderStr = builder.toString();
+                            byte[] bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(orderStr), KEY);
+                            new MyThread(bytes).start();
+                        }
+                    }
+                });
+                ViewGroup extView = (ViewGroup) LayoutInflater.from(MainActivity.this).inflate(R.layout.alertext_form, null);
+                etName = (EditText) extView.findViewById(R.id.etName);
+                etName.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                    @Override
+                    public void onFocusChange(View view, boolean focus) {
+                        //输入框出来则往上移动
+                        boolean isOpen = imm.isActive();
+                        mAlertViewExt.setMarginBottom(isOpen && focus ? 120 : 0);
+                        System.out.println(isOpen);
+                    }
+                });
+                mAlertViewExt.addExtView(extView);
+                mAlertViewExt.show();
             }
         });
 
@@ -274,8 +331,6 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "设备获取异常", Toast.LENGTH_SHORT).show();
         }
     }
-
-
 
 
     private BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
@@ -410,35 +465,35 @@ public class MainActivity extends AppCompatActivity {
                                 token[2] = mingwen[5];
                                 token[3] = mingwen[6];
                                 GlobalParameterUtils.getInstance().setToken(token);
-                                result.append("token:"+AESUtils.bytes2HexString(token));
+                                result.append("token:" + AESUtils.bytes2HexString(token));
                             }
                         }
 
                         byte[] bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(new GetDeviceId().generateString()), KEY);
                         new MyThread(bytes).start();
-                    }else if (AESUtils.bytes2HexString(mingwen).startsWith("0902")){
+                    } else if (AESUtils.bytes2HexString(mingwen).startsWith("0902")) {
                         byte[] x = new byte[12];
                         System.arraycopy(mingwen, 4, x, 0, 12);
-                        mInfoTextView.append("\n设备编号:"+AESUtils.bytes2HexString(x));
-                        result.append("\n设备编号:"+AESUtils.bytes2HexString(x));
-                    }else if (AESUtils.bytes2HexString(mingwen).startsWith("0502")){
-                        result.append("\n开锁反馈:"+AESUtils.bytes2HexString(mingwen));
-                    }else if (AESUtils.bytes2HexString(mingwen).startsWith("050D")){
-                        result.append("\n关锁反馈:"+AESUtils.bytes2HexString(mingwen));
-                    }else if (AESUtils.bytes2HexString(mingwen).startsWith("0505")){
-                        if (AESUtils.bytes2HexString(mingwen).startsWith("05050100")){
+                        mInfoTextView.append("\n设备编号:" + AESUtils.bytes2HexString(x));
+                        result.append("\n设备编号:" + AESUtils.bytes2HexString(x));
+                    } else if (AESUtils.bytes2HexString(mingwen).startsWith("0502")) {
+                        result.append("\n开锁反馈:" + AESUtils.bytes2HexString(mingwen));
+                    } else if (AESUtils.bytes2HexString(mingwen).startsWith("050D")) {
+                        result.append("\n关锁反馈:" + AESUtils.bytes2HexString(mingwen));
+                    } else if (AESUtils.bytes2HexString(mingwen).startsWith("0505")) {
+                        if (AESUtils.bytes2HexString(mingwen).startsWith("05050100")) {
                             Config.password = newPasswordBytes;
                         }
-                        result.append("\n修改密码反馈:"+AESUtils.bytes2HexString(mingwen));
-                    }else if (AESUtils.bytes2HexString(mingwen).startsWith("0703")){
-                        if (AESUtils.bytes2HexString(mingwen).startsWith("07030100")){
+                        result.append("\n修改密码反馈:" + AESUtils.bytes2HexString(mingwen));
+                    } else if (AESUtils.bytes2HexString(mingwen).startsWith("0703")) {
+                        if (AESUtils.bytes2HexString(mingwen).startsWith("07030100")) {
                             KEY = Config.MTX_KEY;
                         }
-                        result.append("\n修改密钥反馈:"+AESUtils.bytes2HexString(mingwen));
-                    }else if (AESUtils.bytes2HexString(mingwen).startsWith("1002")){
-                        result.append("\n开启电池仓反馈:"+AESUtils.bytes2HexString(mingwen));
-                    }else if (AESUtils.bytes2HexString(mingwen).startsWith("1004")){
-                        result.append("\n关闭电池仓反馈:"+AESUtils.bytes2HexString(mingwen));
+                        result.append("\n修改密钥反馈:" + AESUtils.bytes2HexString(mingwen));
+                    } else if (AESUtils.bytes2HexString(mingwen).startsWith("1002")) {
+                        result.append("\n开启电池仓反馈:" + AESUtils.bytes2HexString(mingwen));
+                    } else if (AESUtils.bytes2HexString(mingwen).startsWith("1004")) {
+                        result.append("\n关闭电池仓反馈:" + AESUtils.bytes2HexString(mingwen));
                     }
                     break;
             }
@@ -469,15 +524,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    class PaseDataThread extends Thread{
+    class PaseDataThread extends Thread {
         @Override
         public void run() {
             super.run();
-            while (true){
+            while (true) {
                 try {
                     sleep(500);
                     //读取数据1   两种方法读取数据
-                    if (inEndpoint!=null){
+                    if (inEndpoint != null) {
                         int ret = connection.bulkTransfer(inEndpoint, mybuffer, mybuffer.length, 3000);
                         Log.e("ret", "ret:" + ret);
                         mydatatransfer.AddData(mybuffer, ret);
