@@ -16,7 +16,6 @@ import android.hardware.usb.UsbManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -28,7 +27,6 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.fitsleep.sunshinelibrary.inter.OnItemClickListener;
 import com.fitsleep.sunshinelibrary.utils.KeyboardUtils;
@@ -501,7 +499,7 @@ public class MainActivity extends MPermissionsActivity {
         OkHttpClient okHttpClient = new OkHttpClient();
         RequestBody body = RequestBody.create(JSON, com.alibaba.fastjson.JSON.toJSONString(bean));
         Request request = new Request.Builder()
-                .url("http://app.nokelock.com:8080/newNokelock/lock/insert")
+                .url("http://api.nokelock.com:8080/nokelock/lock/insert")
                 .post(body)
                 .build();
         okHttpClient.newCall(request).enqueue(new Callback() {

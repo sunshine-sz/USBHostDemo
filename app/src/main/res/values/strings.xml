@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">OTG入库</string>
+    <string name="app_name">OTG入库.测试</string>
     <!--扫一扫-->
     <string name="qc_code_close">Close</string>
     <string name="qr_code_auto_scan_notification">on the QR code</string>
