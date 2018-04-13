@@ -16,6 +16,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
+import android.text.InputType;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -239,6 +240,7 @@ public class MainActivity extends AppCompatActivity {
                 });
                 ViewGroup extView = (ViewGroup) LayoutInflater.from(MainActivity.this).inflate(R.layout.alertext_form, null);
                 etName = (EditText) extView.findViewById(R.id.etName);
+                etName.setInputType(InputType.TYPE_CLASS_TEXT);
                 etName.setOnFocusChangeListener(new View.OnFocusChangeListener() {
                     @Override
                     public void onFocusChange(View view, boolean focus) {
