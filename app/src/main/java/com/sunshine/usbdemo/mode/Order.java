@@ -38,6 +38,7 @@ public class Order {
         UPDATE_VERSION(0x0301),
         GET_DEVICE_ID(0x0901),
         OPEN_BATTERY(0x1001),
+        UPDATE(0x1101),
         CLOSE_BATTERY(0x1003);
 
         final int value;

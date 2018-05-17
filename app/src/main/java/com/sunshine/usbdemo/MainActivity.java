@@ -3,18 +3,25 @@ package com.sunshine.usbdemo;
 import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
+import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.database.Cursor;
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.provider.DocumentsContract;
+import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.text.InputType;
 import android.text.TextUtils;
@@ -25,6 +32,7 @@ import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -38,11 +46,15 @@ import com.sunshine.usbdemo.mode.GetTokenTxOrder;
 import com.sunshine.usbdemo.mode.OpenBatteryTxOrder;
 import com.sunshine.usbdemo.mode.OpenLockTxOrder;
 import com.sunshine.usbdemo.mode.ResetLockTxOrder;
+import com.sunshine.usbdemo.mode.UpdateTxOrder;
 import com.sunshine.usbdemo.utils.AESUtils;
 import com.sunshine.usbdemo.utils.Config;
 import com.sunshine.usbdemo.utils.DataTransfer;
 import com.sunshine.usbdemo.utils.GlobalParameterUtils;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Random;
 
@@ -74,6 +86,12 @@ public class MainActivity extends AppCompatActivity {
     private EditText etName;
     private byte[] oldPassword;
     private byte[] newPasswordBytes;
+    private Button btUpdate;
+    private ProgressBar progressBar;
+    private byte[] mFileBuffer = null;
+    private int currentProgress = 0;
+    private Button btLoadData;
+    private boolean isUpdate = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,7 +104,6 @@ public class MainActivity extends AppCompatActivity {
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View arg0) {
-//                new MyThread2().start();
                 checkDevice();
             }
         });
@@ -255,6 +272,90 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+
+        btLoadData.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                intent.setType("*/*");//设置类型，我这里是任意类型，任意后缀的可以这样写。
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                startActivityForResult(intent, 1);
+            }
+        });
+
+        btUpdate.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (mFileBuffer == null || mFileBuffer.length == 0) {
+                    ToastUtils.showMessage("还未成功加载文件");
+                    return;
+                }
+                byte[] data = new byte[7];
+                data[0] = 0x01;
+                data[1] = 0x01;
+                data[2] = mFileBuffer[0];
+                data[3] = mFileBuffer[1];
+                data[4] = mFileBuffer[2];
+                data[5] = mFileBuffer[3];
+                data[6] = mFileBuffer[4];
+                currentProgress = 5;
+                byte[] bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(new UpdateTxOrder(data).generateString()), KEY);
+                new MyThread(bytes).start();
+            }
+        });
+
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == RESULT_OK) {
+            if (data == null) return;
+            Uri uri = data.getData();
+            if ("file".equalsIgnoreCase(uri.getScheme())) {//使用第三方应用打开
+                String path = uri.getPath();
+                mInfoTextView.append("\n文件路径：" + path);
+                if (loadFile(path)) {
+
+                }
+                return;
+            }
+            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.KITKAT) {//4.4以后
+                String path = getPath(this, uri);
+                mInfoTextView.append("\n文件路径：" + path);
+                if (loadFile(path)) {
+
+                }
+            } else {//4.4以下下系统调用方法
+                String path = getRealPathFromURI(uri);
+                mInfoTextView.append("\n文件路径：" + path);
+                if (loadFile(path)) {
+
+                }
+            }
+        }
+    }
+
+
+    private boolean loadFile(String path) {
+        try {
+            //加载文件
+            File file = new File(path);
+            InputStream inputStream = new FileInputStream(file);
+            mFileBuffer = new byte[(int) file.length()];
+            inputStream.close();
+            //读取文件数据
+            InputStream stream;
+            File f = new File(path);
+            stream = new FileInputStream(f);
+            stream.read(mFileBuffer, 0, mFileBuffer.length);
+            stream.close();
+            mInfoTextView.append("\n 升级文件大小:" + mFileBuffer.length + "字节");
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     @Override
@@ -292,6 +393,9 @@ public class MainActivity extends AppCompatActivity {
         button5 = (Button) findViewById(R.id.bt_password);
         button6 = (Button) findViewById(R.id.bt_key);
         mInfoTextView = (TextView) findViewById(R.id.info);
+        btUpdate = (Button) findViewById(R.id.bt_update_data);
+        progressBar = (ProgressBar) findViewById(R.id.progress);
+        btLoadData = (Button) findViewById(R.id.bt_load_data);
         result = (TextView) findViewById(R.id.result);
     }
 
@@ -496,7 +600,19 @@ public class MainActivity extends AppCompatActivity {
                         result.append("\n开启电池仓反馈:" + AESUtils.bytes2HexString(mingwen));
                     } else if (AESUtils.bytes2HexString(mingwen).startsWith("1004")) {
                         result.append("\n关闭电池仓反馈:" + AESUtils.bytes2HexString(mingwen));
+                    } else if (AESUtils.bytes2HexString(mingwen).startsWith("11020100")) {
+                        result.append("\n准备升级:" + AESUtils.bytes2HexString(mingwen));
+                        isUpdate = true;
+                        new UpdateThread().start();
+                    } else if (AESUtils.bytes2HexString(mingwen).startsWith("11020101")) {
+                        isUpdate = false;
+                        result.append("\n拒绝升级:" + AESUtils.bytes2HexString(mingwen));
                     }
+                    break;
+                case 0x99:
+                    int current = msg.arg1;
+                    float progress = current*1.0f/mFileBuffer.length*1.0f*100;
+                    progressBar.setProgress((int) progress);
                     break;
             }
         }
@@ -549,5 +665,174 @@ public class MainActivity extends AppCompatActivity {
 
             }
         }
+    }
+
+    private int currentPkg = 0;
+
+    class UpdateThread extends Thread {
+        @Override
+        public void run() {
+            super.run();
+            while (isUpdate) {
+                try {
+                    if (currentProgress < mFileBuffer.length) {
+                        //延迟500ms
+                        Thread.sleep(500);
+                        //合集指令
+                        byte[] sendData = new byte[1026];
+                        sendData[0] = (byte) currentPkg;
+                        int diff = mFileBuffer.length - currentProgress;
+                        System.arraycopy(mFileBuffer, currentProgress, sendData, 0, diff >= 1024 ? 1024 : diff);
+                        int crc = 0;
+                        for (int i = 0; i < sendData.length; i++) {
+                            crc ^= sendData[i];
+                        }
+                        sendData[1025] = (byte) crc;
+                        new MyThread(sendData).start();
+                        currentPkg++;
+                        currentProgress += (diff >= 1024 ? 1024 : diff);
+                        Message message = handler.obtainMessage();
+                        message.what = 0x99;
+                        message.arg1 = currentProgress;
+                        handler.sendMessage(message);
+
+                    } else {
+                        isUpdate = false;
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+
+    public String getRealPathFromURI(Uri contentUri) {
+        String res = null;
+        String[] proj = {MediaStore.Images.Media.DATA};
+        Cursor cursor = getContentResolver().query(contentUri, proj, null, null, null);
+        if (null != cursor && cursor.moveToFirst()) {
+            ;
+            int column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
+            res = cursor.getString(column_index);
+            cursor.close();
+        }
+        return res;
+    }
+
+    /**
+     * 专为Android4.4设计的从Uri获取文件绝对路径，以前的方法已不好使
+     */
+    @SuppressLint("NewApi")
+    public String getPath(final Context context, final Uri uri) {
+
+        final boolean isKitKat = Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT;
+
+        // DocumentProvider
+        if (isKitKat && DocumentsContract.isDocumentUri(context, uri)) {
+            // ExternalStorageProvider
+            if (isExternalStorageDocument(uri)) {
+                final String docId = DocumentsContract.getDocumentId(uri);
+                final String[] split = docId.split(":");
+                final String type = split[0];
+
+                if ("primary".equalsIgnoreCase(type)) {
+                    return Environment.getExternalStorageDirectory() + "/" + split[1];
+                }
+            }
+            // DownloadsProvider
+            else if (isDownloadsDocument(uri)) {
+
+                final String id = DocumentsContract.getDocumentId(uri);
+                final Uri contentUri = ContentUris.withAppendedId(
+                        Uri.parse("content://downloads/public_downloads"), Long.valueOf(id));
+
+                return getDataColumn(context, contentUri, null, null);
+            }
+            // MediaProvider
+            else if (isMediaDocument(uri)) {
+                final String docId = DocumentsContract.getDocumentId(uri);
+                final String[] split = docId.split(":");
+                final String type = split[0];
+
+                Uri contentUri = null;
+                if ("image".equals(type)) {
+                    contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+                } else if ("video".equals(type)) {
+                    contentUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
+                } else if ("audio".equals(type)) {
+                    contentUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+                }
+
+                final String selection = "_id=?";
+                final String[] selectionArgs = new String[]{split[1]};
+
+                return getDataColumn(context, contentUri, selection, selectionArgs);
+            }
+        }
+        // MediaStore (and general)
+        else if ("content".equalsIgnoreCase(uri.getScheme())) {
+            return getDataColumn(context, uri, null, null);
+        }
+        // File
+        else if ("file".equalsIgnoreCase(uri.getScheme())) {
+            return uri.getPath();
+        }
+        return null;
+    }
+
+    /**
+     * Get the value of the data column for this Uri. This is useful for
+     * MediaStore Uris, and other file-based ContentProviders.
+     *
+     * @param context       The context.
+     * @param uri           The Uri to query.
+     * @param selection     (Optional) Filter used in the query.
+     * @param selectionArgs (Optional) Selection arguments used in the query.
+     * @return The value of the _data column, which is typically a file path.
+     */
+    public String getDataColumn(Context context, Uri uri, String selection,
+                                String[] selectionArgs) {
+
+        Cursor cursor = null;
+        final String column = "_data";
+        final String[] projection = {column};
+
+        try {
+            cursor = context.getContentResolver().query(uri, projection, selection, selectionArgs,
+                    null);
+            if (cursor != null && cursor.moveToFirst()) {
+                final int column_index = cursor.getColumnIndexOrThrow(column);
+                return cursor.getString(column_index);
+            }
+        } finally {
+            if (cursor != null)
+                cursor.close();
+        }
+        return null;
+    }
+
+    /**
+     * @param uri The Uri to check.
+     * @return Whether the Uri authority is ExternalStorageProvider.
+     */
+    public boolean isExternalStorageDocument(Uri uri) {
+        return "com.android.externalstorage.documents".equals(uri.getAuthority());
+    }
+
+    /**
+     * @param uri The Uri to check.
+     * @return Whether the Uri authority is DownloadsProvider.
+     */
+    public boolean isDownloadsDocument(Uri uri) {
+        return "com.android.providers.downloads.documents".equals(uri.getAuthority());
+    }
+
+    /**
+     * @param uri The Uri to check.
+     * @return Whether the Uri authority is MediaProvider.
+     */
+    public boolean isMediaDocument(Uri uri) {
+        return "com.android.providers.media.documents".equals(uri.getAuthority());
     }
 }
