@@ -1,5 +1,6 @@
 package com.sunshine.usbdemo;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -60,7 +61,7 @@ import java.util.Random;
 
 import static com.sunshine.usbdemo.mode.Order.formatByte2HexStr;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends MPermissionsActivity {
 
     private static final String LOGTAG = MainActivity.class.getSimpleName();
     /**
@@ -97,6 +98,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        requestPermission(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},100);
         ToastUtils.init(getApplicationContext());
         initUI();
         initUSB();
@@ -679,18 +681,20 @@ public class MainActivity extends AppCompatActivity {
                         //延迟500ms
                         Thread.sleep(500);
                         //合集指令
-                        byte[] sendData = new byte[1026];
-                        sendData[0] = (byte) currentPkg;
+                        byte[] sendData = new byte[64];
+                        byte[] bytes = integerTo2Bytes(currentPkg);
+                        sendData[0] = bytes[0];
+                        sendData[1] = bytes[1];
                         int diff = mFileBuffer.length - currentProgress;
-                        System.arraycopy(mFileBuffer, currentProgress, sendData, 0, diff >= 1024 ? 1024 : diff);
+                        System.arraycopy(mFileBuffer, currentProgress, sendData, 2, diff >= 61 ? 61 : diff);
                         int crc = 0;
                         for (int i = 0; i < sendData.length; i++) {
                             crc ^= sendData[i];
                         }
-                        sendData[1025] = (byte) crc;
+                        sendData[63] = (byte) crc;
                         new MyThread(sendData).start();
                         currentPkg++;
-                        currentProgress += (diff >= 1024 ? 1024 : diff);
+                        currentProgress += (diff >= 61 ? 61 : diff);
                         Message message = handler.obtainMessage();
                         message.what = 0x99;
                         message.arg1 = currentProgress;
@@ -834,5 +838,19 @@ public class MainActivity extends AppCompatActivity {
      */
     public boolean isMediaDocument(Uri uri) {
         return "com.android.providers.media.documents".equals(uri.getAuthority());
+    }
+
+    /**
+     * 把一个整形改为2位的byte数组
+     *
+     * @param value
+     * @return
+     * @throws Exception
+     */
+    public byte[] integerTo2Bytes(int value) {
+        byte[] result = new byte[2];
+        result[0] = (byte) ((value >>> 8) & 0xFF);
+        result[1] = (byte) (value & 0xFF);
+        return result;
     }
 }
