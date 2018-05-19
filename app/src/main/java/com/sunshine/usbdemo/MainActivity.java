@@ -572,8 +572,11 @@ public class MainActivity extends MPermissionsActivity {
                                 token[1] = mingwen[4];
                                 token[2] = mingwen[5];
                                 token[3] = mingwen[6];
+                                byte[] version = new byte[2];
+                                version[0] = mingwen[7];
+                                version[1] = mingwen[8];
                                 GlobalParameterUtils.getInstance().setToken(token);
-                                result.append("token:" + AESUtils.bytes2HexString(token));
+                                result.append("token:" + AESUtils.bytes2HexString(token)+"版本号:"+AESUtils.bytes2HexString(version));
                             }
                         }
 
@@ -678,8 +681,8 @@ public class MainActivity extends MPermissionsActivity {
             while (isUpdate) {
                 try {
                     if (currentProgress < mFileBuffer.length) {
-                        //延迟500ms
-                        Thread.sleep(500);
+                        //延迟20ms
+                        Thread.sleep(100);
                         //合集指令
                         byte[] sendData = new byte[64];
                         byte[] bytes = integerTo2Bytes(currentPkg);

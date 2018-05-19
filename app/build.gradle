@@ -6,8 +6,8 @@ android {
         applicationId "com.sunshine.usbdemo"
         minSdkVersion 21
         targetSdkVersion 26
-        versionCode 11
-        versionName "9.1"
+        versionCode 14
+        versionName "9.4"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
