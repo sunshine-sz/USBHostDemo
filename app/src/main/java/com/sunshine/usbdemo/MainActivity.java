@@ -67,7 +67,7 @@ public class MainActivity extends MPermissionsActivity {
     /**
      * 圆形锁
      */
-    public static byte[] KEY = {58, 96, 67, 42, 92, 01, 33, 31, 41, 30, 15, 78, 12, 19, 40, 37};
+    public static byte[] KEY = {32,87,47,82,54,75,63,71,48,80,65,88,17,99,45,43};
 
     //    public static byte[] KEY = {32,87,47,82,54,75,63,71,48,80,65,88,17,99,45,43};
     private Button button, button2, button3, button4, button5, button6;
