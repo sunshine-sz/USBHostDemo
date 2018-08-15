@@ -39,13 +39,16 @@ import com.sunshine.usbdemo.utils.GlobalParameterUtils;
 import com.sunshine.usbdemo.utils.HexUtil;
 import com.sunshine.usbdemo.utils.OkHttpClientManager;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.util.HashMap;
 
 import okhttp3.Request;
 import zxing.android.view.QrCodeActivity;
 
-public class MainActivity extends MPermissionsActivity {
+public class MainActivity extends MPermissionsActivity implements View.OnClickListener {
 
     private static final String LOGTAG = MainActivity.class.getSimpleName();
     /**
@@ -54,7 +57,8 @@ public class MainActivity extends MPermissionsActivity {
     public static byte[] KEY = {32, 87, 47, 82, 54, 75, 63, 71, 48, 80, 65, 88, 17, 99, 45, 43};
 
     //    public static byte[] KEY = {32,87,47,82,54,75,63,71,48,80,65,88,17,99,45,43};
-    private Button button, button2, button3, button4, button5, button6;
+
+    private Button[] buttons = new Button[5];
     private TextView mInfoTextView;
     private UsbManager usbManager;
     private UsbDevice usbDevice;
@@ -82,51 +86,6 @@ public class MainActivity extends MPermissionsActivity {
         initUI();
         initUSB();
         isRunning = true;
-        button.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View arg0) {
-                checkDevice();
-            }
-        });
-
-        button2.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                byte[] bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(new OpenLockTxOrder().generateString()), KEY);
-                new MyThread(bytes).start();
-            }
-        });
-
-        button3.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                byte[] bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(new GetTokenTxOrder().generateString()), KEY);
-                new MyThread(bytes).start();
-            }
-        });
-
-        findViewById(R.id.bt_battery).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                byte[] bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(new OpenBatteryTxOrder().generateString()), KEY);
-                new MyThread(bytes).start();
-            }
-        });
-
-        findViewById(R.id.bt_close_battery).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                byte[] bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(new CloseBatteryTxOrder().generateString()), KEY);
-                new MyThread(bytes).start();
-            }
-        });
-
-        findViewById(R.id.bt_scan).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                requestPermission(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.CAMERA}, 100);
-            }
-        });
     }
 
     @Override
@@ -168,9 +127,8 @@ public class MainActivity extends MPermissionsActivity {
 
     private void getDeviceInfo(String code) {
         //"get", "", code, "", "", "", ""
-        String url = "http://service.rocolock.com:16888/Insert";
-        DeviceInfo deviceInfo = new DeviceInfo("get", "", code, "", "", "", "");
-        OkHttpClientManager.postJson(url, new OkHttpClientManager.StringCallback() {
+        String url = "http://web.dola520.com/DiDi.aspx?cmd=upok3&data=" + code;
+        OkHttpClientManager.getAsyn(url, new OkHttpClientManager.StringCallback() {
             @Override
             public void onFailure(Request request, IOException e) {
                 Log.d(LOGTAG, "onFailure: " + e.getLocalizedMessage());
@@ -179,30 +137,21 @@ public class MainActivity extends MPermissionsActivity {
             @Override
             public void onResponse(String response) {
                 Log.d(LOGTAG, "onResponse: " + response);
-
-                resetKey(response);
+                try {
+                    JSONObject jsonObject = new JSONObject(response);
+                    if ("ok".equals(jsonObject.optString("result"))) {
+                        ToastUtils.showMessage("上报成功");
+                        setTrip(0);
+                    } else {
+                        ToastUtils.showMessage("上报失败:" + jsonObject.optString("message"));
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
             }
-        }, new Gson().toJson(deviceInfo));
+        });
     }
 
-    private void resetKey(String json) {
-        try {
-            DeviceInfo baseSendBean = new Gson().fromJson(json, DeviceInfo.class);
-            String[] split = baseSendBean.getData5().split(",");
-            String[] split1 = baseSendBean.getData6().split(",");
-            for (int i = 0; i < split.length; i++) {
-                KEY[i] = Byte.parseByte(split[i]);
-            }
-            for (int i = 0; i < split1.length; i++) {
-                Config.password[i] = Byte.parseByte(split1[i]);
-            }
-            Log.e(LOGTAG, "key:" + HexUtil.encodeHexStr(KEY));
-            Log.e(LOGTAG, "password:" + HexUtil.encodeHexStr(Config.password));
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
     private void initUSB() {
         //获取USB管理器
@@ -221,13 +170,30 @@ public class MainActivity extends MPermissionsActivity {
      * 初始化ui
      */
     private void initUI() {
-        button = (Button) findViewById(R.id.button);
-        button2 = (Button) findViewById(R.id.button2);
-        button3 = (Button) findViewById(R.id.button3);
+        buttons[0] = findViewById(R.id.btn_check_device);
+        buttons[1] = findViewById(R.id.btn_open_lock);
+        buttons[2] = findViewById(R.id.btn_open_battery);
+        buttons[3] = findViewById(R.id.btn_close_battery);
+        buttons[4] = findViewById(R.id.btn_scan);
+
+        for (Button button : buttons) {
+            button.setOnClickListener(this);
+        }
+
         mInfoTextView = (TextView) findViewById(R.id.info);
         result = (TextView) findViewById(R.id.result);
+        setTrip(0);
     }
 
+    private void setTrip(int trip) {
+        if(trip==0){
+            mInfoTextView.setText("设备信息:");
+            result.setText("监听数据:");
+        }
+        for (int i = 0; i < buttons.length; i++) {
+            buttons[i].setEnabled(i <= trip);
+        }
+    }
 
     private void checkDevice() {
         try {
@@ -244,6 +210,7 @@ public class MainActivity extends MPermissionsActivity {
             }
             if (usbDevice == null) {
                 Log.e(LOGTAG, "没有获取到设备");
+                mInfoTextView.append("\n没有获取到设备");
                 return;
             }
             //程序是否有操作设备的权限
@@ -257,6 +224,10 @@ public class MainActivity extends MPermissionsActivity {
                 inEndpoint = usbInterface.getEndpoint(1);
                 connection = usbManager.openDevice(usbDevice);
                 connection.claimInterface(usbInterface, true);
+
+
+                byte[] bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(new GetTokenTxOrder().generateString()), KEY);
+                new MyThread(bytes).start();
             } else {
                 //询问用户是否授予程序操作USB设备的权限
                 requestPermission(usbDevice);
@@ -412,10 +383,16 @@ public class MainActivity extends MPermissionsActivity {
                     } else if (AESUtils.bytes2HexString(mingwen).startsWith("0902")) {
                         byte[] x = new byte[12];
                         System.arraycopy(mingwen, 4, x, 0, 12);
-                        mInfoTextView.append("\n设备编号:" + AESUtils.bytes2HexString(x));
                         result.append("\n设备编号:" + AESUtils.bytes2HexString(x));
+                        setTrip(1);
                     } else if (AESUtils.bytes2HexString(mingwen).startsWith("0502")) {
-                        result.append("\n开锁反馈:" + AESUtils.bytes2HexString(mingwen));
+                        if (AESUtils.bytes2HexString(mingwen).startsWith("05020100")) {
+                            result.append("\n开锁成功");
+                            setTrip(2);
+                        } else {
+                            result.append("\n开锁失败:" + AESUtils.bytes2HexString(mingwen));
+                        }
+
                     } else if (AESUtils.bytes2HexString(mingwen).startsWith("050D")) {
                         result.append("\n关锁反馈:" + AESUtils.bytes2HexString(mingwen));
                     } else if (AESUtils.bytes2HexString(mingwen).startsWith("0505")) {
@@ -429,9 +406,19 @@ public class MainActivity extends MPermissionsActivity {
                         }
                         result.append("\n修改密钥反馈:" + AESUtils.bytes2HexString(mingwen));
                     } else if (AESUtils.bytes2HexString(mingwen).startsWith("1002")) {
-                        result.append("\n开启电池仓反馈:" + AESUtils.bytes2HexString(mingwen));
+                        if (AESUtils.bytes2HexString(mingwen).startsWith("10020100")) {
+                            result.append("\n开启电池仓成功");
+                            setTrip(3);
+                        } else {
+                            result.append("\n开启电池仓失败:" + AESUtils.bytes2HexString(mingwen));
+                        }
                     } else if (AESUtils.bytes2HexString(mingwen).startsWith("1004")) {
-                        result.append("\n关闭电池仓反馈:" + AESUtils.bytes2HexString(mingwen));
+                        if (AESUtils.bytes2HexString(mingwen).startsWith("10040100")) {
+                            result.append("\n关闭电池仓成功");
+                            setTrip(4);
+                        } else {
+                            result.append("\n关闭电池仓失败:" + AESUtils.bytes2HexString(mingwen));
+                        }
                     } else if (AESUtils.bytes2HexString(mingwen).startsWith("11020100")) {
                         result.append("\n准备升级:" + AESUtils.bytes2HexString(mingwen));
                         isUpdate = true;
@@ -443,6 +430,31 @@ public class MainActivity extends MPermissionsActivity {
             }
         }
     };
+
+    @Override
+    public void onClick(View v) {
+        byte[] bytes;
+        switch (v.getId()) {
+            case R.id.btn_check_device:
+                checkDevice();
+                break;
+            case R.id.btn_open_lock:
+                bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(new OpenLockTxOrder().generateString()), KEY);
+                new MyThread(bytes).start();
+                break;
+            case R.id.btn_open_battery:
+                bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(new OpenBatteryTxOrder().generateString()), KEY);
+                new MyThread(bytes).start();
+                break;
+            case R.id.btn_close_battery:
+                bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(new CloseBatteryTxOrder().generateString()), KEY);
+                new MyThread(bytes).start();
+                break;
+            case R.id.btn_scan:
+                requestPermission(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.CAMERA}, 100);
+                break;
+        }
+    }
 
 
     class MyThread extends Thread {
