@@ -12,10 +12,15 @@
         android:layout_height="match_parent">
 
         <Button
-            android:id="@+id/button"
+            android:id="@+id/bt_scan"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-
+            android:text="扫码"/>
+        <Button
+            android:id="@+id/button"
+            android:layout_toRightOf="@+id/bt_scan"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:text="检测设备" />
 
         <Button
@@ -34,35 +39,12 @@
             android:layout_toRightOf="@+id/button3"
             android:text="开锁" />
 
-        <Button
-            android:id="@+id/button4"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerHorizontal="true"
-            android:layout_toRightOf="@+id/button2"
-            android:text="复位" />
-
-        <Button
-            android:id="@+id/bt_password"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/button"
-            android:text="修改密码" />
-
-        <Button
-            android:id="@+id/bt_key"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/button"
-            android:layout_toRightOf="@+id/bt_password"
-            android:text="修改密钥" />
 
         <Button
             android:id="@+id/bt_battery"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_below="@+id/button"
-            android:layout_toRightOf="@+id/bt_key"
             android:text="开启电池仓" />
 
         <Button
@@ -73,43 +55,12 @@
             android:layout_toRightOf="@+id/bt_battery"
             android:text="关闭电池仓" />
 
-        <Button
-            android:id="@+id/bt_send_data"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/bt_password"
-            android:text="发送数据" />
-
-        <Button
-            android:id="@+id/bt_load_data"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/bt_password"
-            android:layout_toRightOf="@+id/bt_send_data"
-            android:text="加载文件" />
-        <Button
-            android:id="@+id/bt_update_data"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/bt_password"
-            android:layout_toRightOf="@+id/bt_load_data"
-            android:text="开始升级" />
-
-        <ProgressBar
-            android:id="@+id/progress"
-            style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="5dp"
-            android:layout_marginBottom="5dp"
-            android:progress="0"
-            android:layout_below="@+id/bt_load_data" />
 
         <TextView
             android:id="@+id/info"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/progress"
+            android:layout_below="@+id/bt_close_battery"
             android:padding="10dp"
             android:text="设备信息:"
             android:textColor="@android:color/black"

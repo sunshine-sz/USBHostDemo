@@ -4,62 +4,46 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
-import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.database.Cursor;
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
-import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
-import android.provider.DocumentsContract;
-import android.provider.MediaStore;
-import android.support.v7.app.AppCompatActivity;
-import android.text.InputType;
 import android.text.TextUtils;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.fitsleep.sunshinelibrary.inter.OnItemClickListener;
-import com.fitsleep.sunshinelibrary.utils.KeyboardUtils;
 import com.fitsleep.sunshinelibrary.utils.ToastUtils;
-import com.fitsleep.sunshinelibrary.view.AlertView;
+import com.google.gson.Gson;
 import com.sunshine.usbdemo.mode.CloseBatteryTxOrder;
+import com.sunshine.usbdemo.mode.DeviceInfo;
 import com.sunshine.usbdemo.mode.GetDeviceId;
 import com.sunshine.usbdemo.mode.GetTokenTxOrder;
 import com.sunshine.usbdemo.mode.OpenBatteryTxOrder;
 import com.sunshine.usbdemo.mode.OpenLockTxOrder;
-import com.sunshine.usbdemo.mode.ResetLockTxOrder;
-import com.sunshine.usbdemo.mode.UpdateTxOrder;
 import com.sunshine.usbdemo.utils.AESUtils;
 import com.sunshine.usbdemo.utils.Config;
 import com.sunshine.usbdemo.utils.DataTransfer;
 import com.sunshine.usbdemo.utils.GlobalParameterUtils;
+import com.sunshine.usbdemo.utils.HexUtil;
+import com.sunshine.usbdemo.utils.OkHttpClientManager;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
+import java.io.IOException;
 import java.util.HashMap;
-import java.util.Random;
 
-import static com.sunshine.usbdemo.mode.Order.formatByte2HexStr;
+import okhttp3.Request;
+import zxing.android.view.QrCodeActivity;
 
 public class MainActivity extends MPermissionsActivity {
 
@@ -67,7 +51,7 @@ public class MainActivity extends MPermissionsActivity {
     /**
      * 圆形锁
      */
-    public static byte[] KEY = {32,87,47,82,54,75,63,71,48,80,65,88,17,99,45,43};
+    public static byte[] KEY = {32, 87, 47, 82, 54, 75, 63, 71, 48, 80, 65, 88, 17, 99, 45, 43};
 
     //    public static byte[] KEY = {32,87,47,82,54,75,63,71,48,80,65,88,17,99,45,43};
     private Button button, button2, button3, button4, button5, button6;
@@ -85,20 +69,15 @@ public class MainActivity extends MPermissionsActivity {
     private UsbDeviceConnection connection;
     private boolean isRunning = false;
     private EditText etName;
-    private byte[] oldPassword;
-    private byte[] newPasswordBytes;
-    private Button btUpdate;
-    private ProgressBar progressBar;
     private byte[] mFileBuffer = null;
     private int currentProgress = 0;
-    private Button btLoadData;
     private boolean isUpdate = false;
+    public static final int QR_SCAN_REQUEST_CODE = 3638;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        requestPermission(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},100);
         ToastUtils.init(getApplicationContext());
         initUI();
         initUSB();
@@ -125,85 +104,6 @@ public class MainActivity extends MPermissionsActivity {
                 new MyThread(bytes).start();
             }
         });
-        button4.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                byte[] bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(new ResetLockTxOrder().generateString()), KEY);
-                new MyThread(bytes).start();
-            }
-        });
-
-        button5.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                final InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-                final AlertView mAlertViewExt = new AlertView("提示", "输入密码！", "取消", null, new String[]{"完成"}, MainActivity.this, AlertView.Style.Alert, new OnItemClickListener() {
-                    @Override
-                    public void onItemClick(Object o, int position) {
-                        KeyboardUtils.hideSoftInput(MainActivity.this);
-                        if (position == 0) {
-                            final String newPassword = etName.getText().toString().trim();
-                            if (newPassword.length() != 6) {
-                                ToastUtils.showMessage("请输入6位数密码");
-                                return;
-                            }
-
-                            final byte[] token = GlobalParameterUtils.getInstance().getToken();
-                            if (null == token || token.length < 4) {
-                                return;
-                            }
-                            byte[] oldPassword = {0x05, 0x03, 0x06, Config.password[0], Config.password[1], Config.password[2], Config.password[3], Config.password[4], Config.password[5], token[0], token[1], token[2], token[3], 0x00, 0x00, 0x00};
-                            byte[] bytes = AESUtils.Encrypt(oldPassword, KEY);
-                            new MyThread(bytes).start();
-                            new Handler().postDelayed(new Runnable() {
-                                @Override
-                                public void run() {
-                                    char[] chars = newPassword.toCharArray();
-                                    byte[] newPassword = new byte[]{0x05, 0x04, 0x06, (byte) chars[0], (byte) chars[1], (byte) chars[2], (byte) chars[3], (byte) chars[4], (byte) chars[5], token[0], token[1], token[2], token[3], 0x00, 0x00, 0x00};
-                                    newPasswordBytes = new byte[]{(byte) chars[0], (byte) chars[1], (byte) chars[2], (byte) chars[3], (byte) chars[4], (byte) chars[5]};
-                                    byte[] bytes = AESUtils.Encrypt(newPassword, KEY);
-                                    new MyThread(bytes).start();
-                                }
-                            }, 1000);
-                        }
-                    }
-                });
-                ViewGroup extView = (ViewGroup) LayoutInflater.from(MainActivity.this).inflate(R.layout.alertext_form, null);
-                etName = (EditText) extView.findViewById(R.id.etName);
-                etName.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-                    @Override
-                    public void onFocusChange(View view, boolean focus) {
-                        //输入框出来则往上移动
-                        boolean isOpen = imm.isActive();
-                        mAlertViewExt.setMarginBottom(isOpen && focus ? 120 : 0);
-                        System.out.println(isOpen);
-                    }
-                });
-                mAlertViewExt.addExtView(extView);
-                mAlertViewExt.show();
-            }
-        });
-
-        button6.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                byte[] token = GlobalParameterUtils.getInstance().getToken();
-                if (null == token || token.length < 4) {
-                    return;
-                }
-                byte[] aq_mi = {0x07, 0x01, 0x08, Config.MTX_KEY[0], Config.MTX_KEY[1], Config.MTX_KEY[2], Config.MTX_KEY[3], Config.MTX_KEY[4], Config.MTX_KEY[5], Config.MTX_KEY[6], Config.MTX_KEY[7], token[0], token[1], token[2], token[3], 0x00};
-                byte[] bytes = AESUtils.Encrypt(aq_mi, KEY);
-                new MyThread(bytes).start();
-                handler.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        byte[] aq_mi = {0x07, 0x02, 0x08, Config.MTX_KEY[8], Config.MTX_KEY[9], Config.MTX_KEY[10], Config.MTX_KEY[11], Config.MTX_KEY[12], Config.MTX_KEY[13], Config.MTX_KEY[14], Config.MTX_KEY[15], GlobalParameterUtils.getInstance().getToken()[0], GlobalParameterUtils.getInstance().getToken()[1], GlobalParameterUtils.getInstance().getToken()[2], GlobalParameterUtils.getInstance().getToken()[3], 0x00};
-                        byte[] bytes = AESUtils.Encrypt(aq_mi, KEY);
-                        new MyThread(bytes).start();
-                    }
-                }, 1000);
-            }
-        });
 
         findViewById(R.id.bt_battery).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -221,143 +121,12 @@ public class MainActivity extends MPermissionsActivity {
             }
         });
 
-        findViewById(R.id.bt_send_data).setOnClickListener(new View.OnClickListener() {
+        findViewById(R.id.bt_scan).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                final InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-                final AlertView mAlertViewExt = new AlertView("输入指令", "只需要输入token之前的字节即可！", "取消", null, new String[]{"完成"}, MainActivity.this, AlertView.Style.Alert, new OnItemClickListener() {
-                    @Override
-                    public void onItemClick(Object o, int position) {
-                        KeyboardUtils.hideSoftInput(MainActivity.this);
-                        if (position == 0) {
-                            final String newPassword = etName.getText().toString().trim();
-                            if (TextUtils.isEmpty(newPassword) || newPassword.length() % 2 != 0) {
-                                ToastUtils.showMessage("格式不对");
-                                return;
-                            }
-                            final byte[] token = GlobalParameterUtils.getInstance().getToken();
-                            if (null == token || token.length < 4) {
-                                return;
-                            }
-                            Random random = new Random();
-                            StringBuilder builder = new StringBuilder();
-                            builder.append(newPassword);
-                            //添加token
-                            for (int i = 0; i < 4; i++) {
-                                builder.append(formatByte2HexStr(GlobalParameterUtils.getInstance().getToken()[i]));
-                            }
-                            // 如果数据总位数不够，在数据后面补0
-                            for (int i = builder.length() / 2; i < 16; i++) {
-                                builder.append(formatByte2HexStr((byte) random.nextInt(127)));
-                            }
-                            // 生成字符串形式的指令
-                            String orderStr = builder.toString();
-                            byte[] bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(orderStr), KEY);
-                            new MyThread(bytes).start();
-                        }
-                    }
-                });
-                ViewGroup extView = (ViewGroup) LayoutInflater.from(MainActivity.this).inflate(R.layout.alertext_form, null);
-                etName = (EditText) extView.findViewById(R.id.etName);
-                etName.setInputType(InputType.TYPE_CLASS_TEXT);
-                etName.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-                    @Override
-                    public void onFocusChange(View view, boolean focus) {
-                        //输入框出来则往上移动
-                        boolean isOpen = imm.isActive();
-                        mAlertViewExt.setMarginBottom(isOpen && focus ? 120 : 0);
-                        System.out.println(isOpen);
-                    }
-                });
-                mAlertViewExt.addExtView(extView);
-                mAlertViewExt.show();
+                requestPermission(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.CAMERA}, 100);
             }
         });
-
-
-        btLoadData.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-                intent.setType("*/*");//设置类型，我这里是任意类型，任意后缀的可以这样写。
-                intent.addCategory(Intent.CATEGORY_OPENABLE);
-                startActivityForResult(intent, 1);
-            }
-        });
-
-        btUpdate.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (mFileBuffer == null || mFileBuffer.length == 0) {
-                    ToastUtils.showMessage("还未成功加载文件");
-                    return;
-                }
-                byte[] data = new byte[7];
-                data[0] = 0x01;
-                data[1] = 0x01;
-                data[2] = mFileBuffer[0];
-                data[3] = mFileBuffer[1];
-                data[4] = mFileBuffer[2];
-                data[5] = mFileBuffer[3];
-                data[6] = mFileBuffer[4];
-                currentProgress = 5;
-                byte[] bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(new UpdateTxOrder(data).generateString()), KEY);
-                new MyThread(bytes).start();
-            }
-        });
-
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK) {
-            if (data == null) return;
-            Uri uri = data.getData();
-            if ("file".equalsIgnoreCase(uri.getScheme())) {//使用第三方应用打开
-                String path = uri.getPath();
-                mInfoTextView.append("\n文件路径：" + path);
-                if (loadFile(path)) {
-
-                }
-                return;
-            }
-            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.KITKAT) {//4.4以后
-                String path = getPath(this, uri);
-                mInfoTextView.append("\n文件路径：" + path);
-                if (loadFile(path)) {
-
-                }
-            } else {//4.4以下下系统调用方法
-                String path = getRealPathFromURI(uri);
-                mInfoTextView.append("\n文件路径：" + path);
-                if (loadFile(path)) {
-
-                }
-            }
-        }
-    }
-
-
-    private boolean loadFile(String path) {
-        try {
-            //加载文件
-            File file = new File(path);
-            InputStream inputStream = new FileInputStream(file);
-            mFileBuffer = new byte[(int) file.length()];
-            inputStream.close();
-            //读取文件数据
-            InputStream stream;
-            File f = new File(path);
-            stream = new FileInputStream(f);
-            stream.read(mFileBuffer, 0, mFileBuffer.length);
-            stream.close();
-            mInfoTextView.append("\n 升级文件大小:" + mFileBuffer.length + "字节");
-            return true;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
     }
 
     @Override
@@ -369,6 +138,70 @@ public class MainActivity extends MPermissionsActivity {
         }
         isRunning = false;
         System.exit(0);
+    }
+
+    @Override
+    public void permissionSuccess(int requestCode) {
+        super.permissionSuccess(requestCode);
+        if (checkPermissions(new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE})) {
+            startActivityForResult(new Intent(this, QrCodeActivity.class), QR_SCAN_REQUEST_CODE);
+        }
+    }
+
+    @Override
+    public void permissionFail(int requestCode) {
+        super.permissionFail(requestCode);
+        ToastUtils.showMessage("用户拒绝权限");
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == QR_SCAN_REQUEST_CODE && resultCode == RESULT_OK && null != data) {
+            String code = data.getStringExtra("code");
+            if (!TextUtils.isEmpty(code)) {
+                Log.d(LOGTAG, "onActivityResult: " + code);
+                getDeviceInfo(code);
+            }
+        }
+    }
+
+    private void getDeviceInfo(String code) {
+        //"get", "", code, "", "", "", ""
+        String url = "http://service.rocolock.com:16888/Insert";
+        DeviceInfo deviceInfo = new DeviceInfo("get", "", code, "", "", "", "");
+        OkHttpClientManager.postJson(url, new OkHttpClientManager.StringCallback() {
+            @Override
+            public void onFailure(Request request, IOException e) {
+                Log.d(LOGTAG, "onFailure: " + e.getLocalizedMessage());
+            }
+
+            @Override
+            public void onResponse(String response) {
+                Log.d(LOGTAG, "onResponse: " + response);
+
+                resetKey(response);
+            }
+        }, new Gson().toJson(deviceInfo));
+    }
+
+    private void resetKey(String json) {
+        try {
+            DeviceInfo baseSendBean = new Gson().fromJson(json, DeviceInfo.class);
+            String[] split = baseSendBean.getData5().split(",");
+            String[] split1 = baseSendBean.getData6().split(",");
+            for (int i = 0; i < split.length; i++) {
+                KEY[i] = Byte.parseByte(split[i]);
+            }
+            for (int i = 0; i < split1.length; i++) {
+                Config.password[i] = Byte.parseByte(split1[i]);
+            }
+            Log.e(LOGTAG, "key:" + HexUtil.encodeHexStr(KEY));
+            Log.e(LOGTAG, "password:" + HexUtil.encodeHexStr(Config.password));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void initUSB() {
@@ -391,13 +224,7 @@ public class MainActivity extends MPermissionsActivity {
         button = (Button) findViewById(R.id.button);
         button2 = (Button) findViewById(R.id.button2);
         button3 = (Button) findViewById(R.id.button3);
-        button4 = (Button) findViewById(R.id.button4);
-        button5 = (Button) findViewById(R.id.bt_password);
-        button6 = (Button) findViewById(R.id.bt_key);
         mInfoTextView = (TextView) findViewById(R.id.info);
-        btUpdate = (Button) findViewById(R.id.bt_update_data);
-        progressBar = (ProgressBar) findViewById(R.id.progress);
-        btLoadData = (Button) findViewById(R.id.bt_load_data);
         result = (TextView) findViewById(R.id.result);
     }
 
@@ -576,7 +403,7 @@ public class MainActivity extends MPermissionsActivity {
                                 version[0] = mingwen[7];
                                 version[1] = mingwen[8];
                                 GlobalParameterUtils.getInstance().setToken(token);
-                                result.append("token:" + AESUtils.bytes2HexString(token)+"版本号:"+AESUtils.bytes2HexString(version));
+                                result.append("token:" + AESUtils.bytes2HexString(token) + "版本号:" + AESUtils.bytes2HexString(version));
                             }
                         }
 
@@ -593,7 +420,7 @@ public class MainActivity extends MPermissionsActivity {
                         result.append("\n关锁反馈:" + AESUtils.bytes2HexString(mingwen));
                     } else if (AESUtils.bytes2HexString(mingwen).startsWith("0505")) {
                         if (AESUtils.bytes2HexString(mingwen).startsWith("05050100")) {
-                            Config.password = newPasswordBytes;
+
                         }
                         result.append("\n修改密码反馈:" + AESUtils.bytes2HexString(mingwen));
                     } else if (AESUtils.bytes2HexString(mingwen).startsWith("0703")) {
@@ -608,16 +435,10 @@ public class MainActivity extends MPermissionsActivity {
                     } else if (AESUtils.bytes2HexString(mingwen).startsWith("11020100")) {
                         result.append("\n准备升级:" + AESUtils.bytes2HexString(mingwen));
                         isUpdate = true;
-                        new UpdateThread().start();
                     } else if (AESUtils.bytes2HexString(mingwen).startsWith("11020101")) {
                         isUpdate = false;
                         result.append("\n拒绝升级:" + AESUtils.bytes2HexString(mingwen));
                     }
-                    break;
-                case 0x99:
-                    int current = msg.arg1;
-                    float progress = current*1.0f/mFileBuffer.length*1.0f*100;
-                    progressBar.setProgress((int) progress);
                     break;
             }
         }
@@ -670,190 +491,5 @@ public class MainActivity extends MPermissionsActivity {
 
             }
         }
-    }
-
-    private int currentPkg = 0;
-
-    class UpdateThread extends Thread {
-        @Override
-        public void run() {
-            super.run();
-            while (isUpdate) {
-                try {
-                    if (currentProgress < mFileBuffer.length) {
-                        //延迟20ms
-                        Thread.sleep(100);
-                        //合集指令
-                        byte[] sendData = new byte[64];
-                        byte[] bytes = integerTo2Bytes(currentPkg);
-                        sendData[0] = bytes[0];
-                        sendData[1] = bytes[1];
-                        int diff = mFileBuffer.length - currentProgress;
-                        System.arraycopy(mFileBuffer, currentProgress, sendData, 2, diff >= 61 ? 61 : diff);
-                        int crc = 0;
-                        for (int i = 0; i < sendData.length; i++) {
-                            crc ^= sendData[i];
-                        }
-                        sendData[63] = (byte) crc;
-                        new MyThread(sendData).start();
-                        currentPkg++;
-                        currentProgress += (diff >= 61 ? 61 : diff);
-                        Message message = handler.obtainMessage();
-                        message.what = 0x99;
-                        message.arg1 = currentProgress;
-                        handler.sendMessage(message);
-
-                    } else {
-                        isUpdate = false;
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-
-
-    public String getRealPathFromURI(Uri contentUri) {
-        String res = null;
-        String[] proj = {MediaStore.Images.Media.DATA};
-        Cursor cursor = getContentResolver().query(contentUri, proj, null, null, null);
-        if (null != cursor && cursor.moveToFirst()) {
-            ;
-            int column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
-            res = cursor.getString(column_index);
-            cursor.close();
-        }
-        return res;
-    }
-
-    /**
-     * 专为Android4.4设计的从Uri获取文件绝对路径，以前的方法已不好使
-     */
-    @SuppressLint("NewApi")
-    public String getPath(final Context context, final Uri uri) {
-
-        final boolean isKitKat = Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT;
-
-        // DocumentProvider
-        if (isKitKat && DocumentsContract.isDocumentUri(context, uri)) {
-            // ExternalStorageProvider
-            if (isExternalStorageDocument(uri)) {
-                final String docId = DocumentsContract.getDocumentId(uri);
-                final String[] split = docId.split(":");
-                final String type = split[0];
-
-                if ("primary".equalsIgnoreCase(type)) {
-                    return Environment.getExternalStorageDirectory() + "/" + split[1];
-                }
-            }
-            // DownloadsProvider
-            else if (isDownloadsDocument(uri)) {
-
-                final String id = DocumentsContract.getDocumentId(uri);
-                final Uri contentUri = ContentUris.withAppendedId(
-                        Uri.parse("content://downloads/public_downloads"), Long.valueOf(id));
-
-                return getDataColumn(context, contentUri, null, null);
-            }
-            // MediaProvider
-            else if (isMediaDocument(uri)) {
-                final String docId = DocumentsContract.getDocumentId(uri);
-                final String[] split = docId.split(":");
-                final String type = split[0];
-
-                Uri contentUri = null;
-                if ("image".equals(type)) {
-                    contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
-                } else if ("video".equals(type)) {
-                    contentUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
-                } else if ("audio".equals(type)) {
-                    contentUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
-                }
-
-                final String selection = "_id=?";
-                final String[] selectionArgs = new String[]{split[1]};
-
-                return getDataColumn(context, contentUri, selection, selectionArgs);
-            }
-        }
-        // MediaStore (and general)
-        else if ("content".equalsIgnoreCase(uri.getScheme())) {
-            return getDataColumn(context, uri, null, null);
-        }
-        // File
-        else if ("file".equalsIgnoreCase(uri.getScheme())) {
-            return uri.getPath();
-        }
-        return null;
-    }
-
-    /**
-     * Get the value of the data column for this Uri. This is useful for
-     * MediaStore Uris, and other file-based ContentProviders.
-     *
-     * @param context       The context.
-     * @param uri           The Uri to query.
-     * @param selection     (Optional) Filter used in the query.
-     * @param selectionArgs (Optional) Selection arguments used in the query.
-     * @return The value of the _data column, which is typically a file path.
-     */
-    public String getDataColumn(Context context, Uri uri, String selection,
-                                String[] selectionArgs) {
-
-        Cursor cursor = null;
-        final String column = "_data";
-        final String[] projection = {column};
-
-        try {
-            cursor = context.getContentResolver().query(uri, projection, selection, selectionArgs,
-                    null);
-            if (cursor != null && cursor.moveToFirst()) {
-                final int column_index = cursor.getColumnIndexOrThrow(column);
-                return cursor.getString(column_index);
-            }
-        } finally {
-            if (cursor != null)
-                cursor.close();
-        }
-        return null;
-    }
-
-    /**
-     * @param uri The Uri to check.
-     * @return Whether the Uri authority is ExternalStorageProvider.
-     */
-    public boolean isExternalStorageDocument(Uri uri) {
-        return "com.android.externalstorage.documents".equals(uri.getAuthority());
-    }
-
-    /**
-     * @param uri The Uri to check.
-     * @return Whether the Uri authority is DownloadsProvider.
-     */
-    public boolean isDownloadsDocument(Uri uri) {
-        return "com.android.providers.downloads.documents".equals(uri.getAuthority());
-    }
-
-    /**
-     * @param uri The Uri to check.
-     * @return Whether the Uri authority is MediaProvider.
-     */
-    public boolean isMediaDocument(Uri uri) {
-        return "com.android.providers.media.documents".equals(uri.getAuthority());
-    }
-
-    /**
-     * 把一个整形改为2位的byte数组
-     *
-     * @param value
-     * @return
-     * @throws Exception
-     */
-    public byte[] integerTo2Bytes(int value) {
-        byte[] result = new byte[2];
-        result[0] = (byte) ((value >>> 8) & 0xFF);
-        result[1] = (byte) (value & 0xFF);
-        return result;
     }
 }

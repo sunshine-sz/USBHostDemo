@@ -1,3 +1,14 @@
 <resources>
-    <string name="app_name">USBDemo</string>
+    <string name="app_name">OTG.测试</string>
+
+    <!--扫一扫-->
+    <string name="qc_code_close">Close</string>
+    <string name="qr_code_auto_scan_notification">point to QR on bike</string>
+    <string name="qr_code_notification">Hint</string>
+    <string name="qr_code_camera_not_open">Turn on camera\"setting>privacy>camera\"set</string>
+    <string name="qr_code_positive_button_know">Get it</string>
+    <string name="qr_code_positive_button_confirm">Confirm</string>
+    <string name="qr_code_could_not_read_qr_code_from_picture">Can’t read the link~</string>
+    <string name="qr_code_could_not_read_qr_code_from_scanner">Sorry,can’t read the content</string>
+    <string name="qr_code_camera_not_found">Camera undetected</string>
 </resources>
