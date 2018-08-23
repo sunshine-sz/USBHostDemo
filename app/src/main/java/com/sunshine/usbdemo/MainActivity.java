@@ -25,9 +25,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.fitsleep.sunshinelibrary.utils.ToastUtils;
-import com.google.gson.Gson;
 import com.sunshine.usbdemo.mode.CloseBatteryTxOrder;
-import com.sunshine.usbdemo.mode.DeviceInfo;
 import com.sunshine.usbdemo.mode.GetDeviceId;
 import com.sunshine.usbdemo.mode.GetTokenTxOrder;
 import com.sunshine.usbdemo.mode.OpenBatteryTxOrder;
@@ -36,7 +34,6 @@ import com.sunshine.usbdemo.utils.AESUtils;
 import com.sunshine.usbdemo.utils.Config;
 import com.sunshine.usbdemo.utils.DataTransfer;
 import com.sunshine.usbdemo.utils.GlobalParameterUtils;
-import com.sunshine.usbdemo.utils.HexUtil;
 import com.sunshine.usbdemo.utils.OkHttpClientManager;
 
 import org.json.JSONException;
@@ -127,7 +124,7 @@ public class MainActivity extends MPermissionsActivity implements View.OnClickLi
 
     private void getDeviceInfo(String code) {
         //"get", "", code, "", "", "", ""
-        String url = "http://web.dola520.com/DiDi.aspx?cmd=upok3&data=" + code;
+        String url = "http://119.23.127.196:29999/DiDi.aspx?cmd=upok3&data=" + code;
         OkHttpClientManager.getAsyn(url, new OkHttpClientManager.StringCallback() {
             @Override
             public void onFailure(Request request, IOException e) {
@@ -174,7 +171,7 @@ public class MainActivity extends MPermissionsActivity implements View.OnClickLi
         buttons[1] = findViewById(R.id.btn_open_lock);
         buttons[2] = findViewById(R.id.btn_open_battery);
         buttons[3] = findViewById(R.id.btn_close_battery);
-        buttons[4] = findViewById(R.id.btn_scan);
+        buttons[4] = findViewById(R.id.btn_submit);
 
         for (Button button : buttons) {
             button.setOnClickListener(this);
@@ -450,7 +447,7 @@ public class MainActivity extends MPermissionsActivity implements View.OnClickLi
                 bytes = AESUtils.Encrypt(AESUtils.hexString2Bytes(new CloseBatteryTxOrder().generateString()), KEY);
                 new MyThread(bytes).start();
                 break;
-            case R.id.btn_scan:
+            case R.id.btn_submit:
                 requestPermission(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.CAMERA}, 100);
                 break;
         }
